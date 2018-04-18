@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: A function is triggered off an upload to a bucket. It logs the content type of the uploaded object.
+# This needs to be deployed where SES Runs. For now its us-east-1
+Parameters:
+  Handler:
+    Type: String
+    Default: "approver.lambda_handler"
+  Runtime:
+    Type: String
+    Default: "python2.7"
+  S3CodeBucket:
+    Type: String
+    Default: "acmapprovelambda-XX-us-east-1-XXXXXXXXXXXX"
+  S3CodeKey:
+    Type: String
+    Default: "approver.zip"
+  BucketListener:
+    Type: String
+    Default: "email-forwarded"
+  Timeout:
+    Type: String
+    Default: "300"
+
+
+Resources:
+  ProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: !Ref Handler
+      Runtime: !Ref Runtime
+      Timeout: !Ref Timeout
+      CodeUri:
+        Bucket: !Ref S3CodeBucket
+        Key: !Ref S3CodeKey
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:Get*
+                - s3:List*
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - acm:Describe*
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - ses:Send**
+              Resource: "*"
+      Events:
+        EmailArrival:
+          Type: S3
+          Properties:
+            Bucket: !Ref Bucket
+            Events: s3:ObjectCreated:*
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    BucketName: certapprovalXXXXA-XX-us-east-XXXX
+    LifecycleConfiguration:
+      Rules:
+        - Id: DeleteStuff
+          Status: Enabled
+          ExpirationInDays: 30
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'ses.amazonaws.com'
+            Action:
+              - 's3:PutObject'
+            Resource: !Join ["", ["arn:aws:s3:::", !Ref Bucket, "/*"]]
+            Condition:
+              StringEquals:
+                "aws:Referer": !Sub ${AWS::AccountId}
+
+  SesRuleSet:
+    Type: "AWS::SES::ReceiptRuleSet"
+
+  SesRule:
+    Type: "AWS::SES::ReceiptRule"
+    Properties:
+      Rule:
+        Recipients:
+          - admin@domain
+        Actions:
+          - S3Action:
+              BucketName: !Ref Bucket
+        Enabled: true
+        ScanEnabled: true
+      RuleSetName: !Ref SesRuleSet
+
+Outputs:
+  CertApprovalBucket:
+    Description: Bucket containing emails for Cert approvals
+    Value: !Ref Bucket
+    Export:
+      Name: CertApprovalBucket
