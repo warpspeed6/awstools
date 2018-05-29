@@ -6,3 +6,8 @@ Collection of AWS scripts
 S3 bucket generates an event and triggers the lambda.
 lambda checks if its wildcard and rejects it, else approves it using mechanize library.
 An email is sent in either case.
+
+*
+* athenatest.py: Runs a query on the CloudTrail logs
+* s3-alert.py: Sends a Slack Alert
+
