@@ -10,6 +10,6 @@ lambda checks if its wildcard and rejects it, else approves it using mechanize l
 An email is sent in either case.
 ---
 * athenatest.py: Runs a query on the CloudTrail logs to check if the files are public
-* s3-alert.py: Sends a Slack Alert if they areAAAAa
+* s3-alert.py: Sends a Slack Alert if they are public
 ---
 
